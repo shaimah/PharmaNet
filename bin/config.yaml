@@ -1,0 +1,44 @@
+package auto
+
+import (
+    "pharmanet/agent/internal/connectors"
+    // Import your detectors here (e.g., msupply, openboxes)
+)
+
+type Agent struct {
+    Detectors  []connectors.Detector
+    Connectors []connectors.Connector
+}
+
+func NewAgent() *Agent {
+    return &Agent{
+        Detectors: []connectors.Detector{
+            &msupply.Detector{},  // mSupply detector
+            // Add other detectors here
+        },
+    }
+}
+
+func (a *Agent) DiscoverAndConnect(allowedApps []string) {
+    for _, det := range a.Detectors {
+        if contains(allowedApps, det.App()) {
+            dets, _ := det.Detect()
+            for _, d := range dets {
+                connector := ConnectorFactory(d)
+                if connector != nil {
+                    a.Connectors = append(a.Connectors, connector)
+                }
+            }
+        }
+    }
+}
+
+func (a *Agent) Search(query string, limit int) []connectors.StockRecord {
+    var results []connectors.StockRecord
+    for _, c := range a.Connectors {
+        if res, err := c.Search(connectors.SearchRequest{Query: query, Limit: limit}); err == nil {
+            results = append(results, res...)
+        }
+    }
+    return results
+}
