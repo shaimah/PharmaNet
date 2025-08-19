@@ -2,64 +2,53 @@ package auto
 
 import (
 	"pharmanet/agent/internal/connectors"
-	"os"
-	"path/filepath"
-	"runtime"
-	"strings"
 )
 
+// Auto orchestrates all detectors
 type Auto struct {
 	detectors []connectors.Detector
 }
 
+// New returns an Auto orchestrator with generic detectors
 func New() *Auto {
-	// Add any generic detectors here. Each detector discovers one software type.
-	return &Auto{detectors: []connectors.Detector{&GenericDetector{}}}
+	return &Auto{
+		detectors: []connectors.Detector{
+			&GenericDetector{},
+		},
+	}
 }
 
-func (a *Auto) Discover() ([]connectors.Detection, error) {
+// Discover returns all detections from user-selected software
+func (a *Auto) Discover(selectedApps []string) ([]connectors.Detection, error) {
 	var all []connectors.Detection
 	for _, d := range a.detectors {
-		if dets, err := d.Detect(); err == nil {
-			all = append(all, dets...)
+		dets, err := d.Detect()
+		if err != nil {
+			continue
+		}
+		for _, det := range dets {
+			// Only include if the user selected this app
+			for _, sel := range selectedApps {
+				if det.App == sel {
+					all = append(all, det)
+				}
+			}
 		}
 	}
 	return all, nil
 }
 
-// GenericDetector detects installed software (placeholder)
+// GenericDetector is a placeholder detector for any installed software
 type GenericDetector struct{}
 
+// App returns the generic name
 func (d *GenericDetector) App() string { return "generic_pharmacy_app" }
 
+// Detect finds installed apps (scan paths)
 func (d *GenericDetector) Detect() ([]connectors.Detection, error) {
-	var candidates []string
-	switch runtime.GOOS {
-	case "windows":
-		candidates = []string{`C:\Program Files`, `C:\ProgramData`}
-	case "darwin":
-		candidates = []string{"/Applications", filepath.Join(os.Getenv("HOME"), "Library/Application Support")}
-	default:
-		candidates = []string{"/opt", "/usr/local/share", "/var/lib"}
-	}
-
-	var out []connectors.Detection
-	for _, base := range candidates {
-		_ = filepath.Walk(base, func(path string, info os.FileInfo, err error) error {
-			if err != nil || info == nil || info.IsDir() {
-				return nil
-			}
-			name := strings.ToLower(info.Name())
-			if strings.Contains(name, "pharmacy") {
-				out = append(out, connectors.Detection{
-					App:  d.App(),
-					Kind: "generic",
-					DSN:  path,
-					Meta: map[string]string{"path": path},
-				})
-			}
-			return nil
-		})
-	}
-	return out, nil
+	// Placeholder: in production, scan installed programs, AppData, /Applications, etc.
+	// Return dummy detection for demonstration
+	return []connectors.Detection{
+		{App: "generic_pharmacy_app", Kind: "generic", DSN: "path/to/software", Meta: map[string]string{"info": "dummy"}},
+	}, nil
 }
